@@ -24,7 +24,7 @@ module Pledge.RE
 import Prelude hiding ((<>))
 import Data.List (union, nub)
 import Pledge.Core
-import Pledge.Event hiding (Not)  -- 'Not' clashes with the RE complement constructor
+import Pledge.Event
 
 -- | Extended regular expressions over a typed event alphabet.
 --

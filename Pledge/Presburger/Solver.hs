@@ -9,7 +9,6 @@ import Control.Exception (try, SomeException)
 import Data.List (nub, intercalate)
 import qualified Data.Map.Strict as Map
 import Data.SBV hiding (Unsatisfiable)
-import Pledge.Event (Addr)
 import Pledge.Presburger
 
 -- ── Result type ───────────────────────────────────────────────────────────────
@@ -33,82 +32,102 @@ instance Show SolverResult where
 
 -- ── Address / variable collection ─────────────────────────────────────────────
 
-addrsInPExpr :: PExpr -> [Addr]
-addrsInPExpr (Lit _)     = []
-addrsInPExpr (ValAt a)   = [a]
-addrsInPExpr (Var _)     = []
-addrsInPExpr (Add e1 e2) = addrsInPExpr e1 ++ addrsInPExpr e2
-addrsInPExpr (Mul _ e)   = addrsInPExpr e
+addrsInValues :: Values -> [Addr]
+addrsInValues (ValAt a)  = [a]
+addrsInValues (List vs)  = concatMap addrsInValues vs
+addrsInValues _          = []
 
-addrsInPPred :: PPred -> [Addr]
-addrsInPPred PTrue        = []
-addrsInPPred PFalse       = []
-addrsInPPred (PLt  e1 e2) = addrsInPExpr e1 ++ addrsInPExpr e2
-addrsInPPred (PLe  e1 e2) = addrsInPExpr e1 ++ addrsInPExpr e2
-addrsInPPred (PEq  e1 e2) = addrsInPExpr e1 ++ addrsInPExpr e2
-addrsInPPred (PGt  e1 e2) = addrsInPExpr e1 ++ addrsInPExpr e2
-addrsInPPred (PGe  e1 e2) = addrsInPExpr e1 ++ addrsInPExpr e2
-addrsInPPred (PNot p)     = addrsInPPred p
-addrsInPPred (PAnd p q)   = addrsInPPred p ++ addrsInPPred q
+addrsInTerm :: Term -> [Addr]
+addrsInTerm (Val v)     = addrsInValues v
+addrsInTerm (Add s t)   = addrsInTerm s ++ addrsInTerm t
+addrsInTerm (Neg t)     = addrsInTerm t
+addrsInTerm (Mul _ t)   = addrsInTerm t
 
--- | Free (non-heap) variable names mentioned in a 'PExpr' / 'PPred'.
-varsInPExpr :: PExpr -> [String]
-varsInPExpr (Lit _)     = []
-varsInPExpr (ValAt _)   = []
-varsInPExpr (Var x)     = [x]
-varsInPExpr (Add e1 e2) = varsInPExpr e1 ++ varsInPExpr e2
-varsInPExpr (Mul _ e)   = varsInPExpr e
+addrsInPred :: Pred -> [Addr]
+addrsInPred PTrue        = []
+addrsInPred PFalse       = []
+addrsInPred (PLt  e1 e2) = addrsInTerm e1 ++ addrsInTerm e2
+addrsInPred (PLe  e1 e2) = addrsInTerm e1 ++ addrsInTerm e2
+addrsInPred (PEq  e1 e2) = addrsInTerm e1 ++ addrsInTerm e2
+addrsInPred (PGt  e1 e2) = addrsInTerm e1 ++ addrsInTerm e2
+addrsInPred (PGe  e1 e2) = addrsInTerm e1 ++ addrsInTerm e2
+addrsInPred (PNot p)     = addrsInPred p
+addrsInPred (PAnd p q)   = addrsInPred p ++ addrsInPred q
+addrsInPred (POr  p q)   = addrsInPred p ++ addrsInPred q
 
-varsInPPred :: PPred -> [String]
-varsInPPred PTrue        = []
-varsInPPred PFalse       = []
-varsInPPred (PLt  e1 e2) = varsInPExpr e1 ++ varsInPExpr e2
-varsInPPred (PLe  e1 e2) = varsInPExpr e1 ++ varsInPExpr e2
-varsInPPred (PEq  e1 e2) = varsInPExpr e1 ++ varsInPExpr e2
-varsInPPred (PGt  e1 e2) = varsInPExpr e1 ++ varsInPExpr e2
-varsInPPred (PGe  e1 e2) = varsInPExpr e1 ++ varsInPExpr e2
-varsInPPred (PNot p)     = varsInPPred p
-varsInPPred (PAnd p q)   = varsInPPred p ++ varsInPPred q
+-- | Free (non-heap) variable names mentioned in a 'Term' / 'Pred'.
+varsInValues :: Values -> [String]
+varsInValues (Var x)    = [x]
+varsInValues (List vs)  = concatMap varsInValues vs
+varsInValues _          = []
+
+varsInTerm :: Term -> [String]
+varsInTerm (Val v)     = varsInValues v
+varsInTerm (Add s t)   = varsInTerm s ++ varsInTerm t
+varsInTerm (Neg t)     = varsInTerm t
+varsInTerm (Mul _ t)   = varsInTerm t
+
+varsInPred :: Pred -> [String]
+varsInPred PTrue        = []
+varsInPred PFalse       = []
+varsInPred (PLt  e1 e2) = varsInTerm e1 ++ varsInTerm e2
+varsInPred (PLe  e1 e2) = varsInTerm e1 ++ varsInTerm e2
+varsInPred (PEq  e1 e2) = varsInTerm e1 ++ varsInTerm e2
+varsInPred (PGt  e1 e2) = varsInTerm e1 ++ varsInTerm e2
+varsInPred (PGe  e1 e2) = varsInTerm e1 ++ varsInTerm e2
+varsInPred (PNot p)     = varsInPred p
+varsInPred (PAnd p q)   = varsInPred p ++ varsInPred q
+varsInPred (POr  p q)   = varsInPred p ++ varsInPred q
 
 -- ── SBV translation ───────────────────────────────────────────────────────────
 
-pexprToSBV :: Map.Map Addr SInteger -> Map.Map String SInteger -> PExpr -> SInteger
-pexprToSBV _  _  (Lit n)     = fromIntegral n
-pexprToSBV hv _  (ValAt a)   = hv Map.! a
-pexprToSBV _  vv (Var x)     = vv Map.! x
-pexprToSBV hv vv (Add e1 e2) = pexprToSBV hv vv e1 + pexprToSBV hv vv e2
-pexprToSBV hv vv (Mul k e)   = fromIntegral k * pexprToSBV hv vv e
+-- | Only 'Num', 'ValAt' and 'Var' denote integers; any other 'Values'
+-- reaching here (a 'Str', 'Bool', 'Unit' or 'List' used where an arithmetic
+-- term was expected) is a modelling error in the caller, not something this
+-- solver can make sense of.
+valuesToSBV :: Map.Map Addr SInteger -> Map.Map String SInteger -> Values -> SInteger
+valuesToSBV _  _  (Num n)   = fromIntegral n
+valuesToSBV hv _  (ValAt a) = hv Map.! a
+valuesToSBV _  vv (Var x)   = vv Map.! x
+valuesToSBV _  _  v         = error ("Presburger.Solver: non-arithmetic value " ++ show v)
 
-ppredToSBV :: Map.Map Addr SInteger -> Map.Map String SInteger -> PPred -> SBool
-ppredToSBV _  _  PTrue        = sTrue
-ppredToSBV _  _  PFalse       = sFalse
-ppredToSBV hv vv (PLt  e1 e2) = pexprToSBV hv vv e1 .<  pexprToSBV hv vv e2
-ppredToSBV hv vv (PLe  e1 e2) = pexprToSBV hv vv e1 .<= pexprToSBV hv vv e2
-ppredToSBV hv vv (PEq  e1 e2) = pexprToSBV hv vv e1 .== pexprToSBV hv vv e2
-ppredToSBV hv vv (PGt  e1 e2) = pexprToSBV hv vv e1 .>  pexprToSBV hv vv e2
-ppredToSBV hv vv (PGe  e1 e2) = pexprToSBV hv vv e1 .>= pexprToSBV hv vv e2
-ppredToSBV hv vv (PNot p)     = sNot (ppredToSBV hv vv p)
-ppredToSBV hv vv (PAnd p q)   = ppredToSBV hv vv p .&& ppredToSBV hv vv q
+termToSBV :: Map.Map Addr SInteger -> Map.Map String SInteger -> Term -> SInteger
+termToSBV hv vv (Val v)     = valuesToSBV hv vv v
+termToSBV hv vv (Add s t)   = termToSBV hv vv s + termToSBV hv vv t
+termToSBV hv vv (Neg t)     = negate (termToSBV hv vv t)
+termToSBV hv vv (Mul k t)   = fromIntegral k * termToSBV hv vv t
+
+predToSBV :: Map.Map Addr SInteger -> Map.Map String SInteger -> Pred -> SBool
+predToSBV _  _  PTrue        = sTrue
+predToSBV _  _  PFalse       = sFalse
+predToSBV hv vv (PLt  e1 e2) = termToSBV hv vv e1 .<  termToSBV hv vv e2
+predToSBV hv vv (PLe  e1 e2) = termToSBV hv vv e1 .<= termToSBV hv vv e2
+predToSBV hv vv (PEq  e1 e2) = termToSBV hv vv e1 .== termToSBV hv vv e2
+predToSBV hv vv (PGt  e1 e2) = termToSBV hv vv e1 .>  termToSBV hv vv e2
+predToSBV hv vv (PGe  e1 e2) = termToSBV hv vv e1 .>= termToSBV hv vv e2
+predToSBV hv vv (PNot p)     = sNot (predToSBV hv vv p)
+predToSBV hv vv (PAnd p q)   = predToSBV hv vv p .&& predToSBV hv vv q
+predToSBV hv vv (POr  p q)   = predToSBV hv vv p .|| predToSBV hv vv q
 
 -- ── Solver ────────────────────────────────────────────────────────────────────
 -- All ValAt references become unbounded integer variables; so does every
 -- free 'Var'. Only the heap side is reported back in the witness — a 'Var'
 -- is existentially quantified for satisfiability but is not part of the heap.
 
--- | Check satisfiability of a 'PPred' using an SMT solver.
+-- | Check satisfiability of a 'Pred' using an SMT solver.
 -- Returns a concrete witness heap on SAT, 'Unsatisfiable' on UNSAT, or
 -- 'SolverUnknown' if the solver is unavailable or times out.
-checkPPred :: PPred -> IO SolverResult
+checkPPred :: Pred -> IO SolverResult
 checkPPred p = do
-    let addrs  = nub (addrsInPPred p)
-        names  = nub (varsInPPred p)
+    let addrs  = nub (addrsInPred p)
+        names  = nub (varsInPred p)
         varFor = ("h" ++) . show
     eResult <- try $ sat $ do
         hvars <- mapM (sInteger . varFor) addrs
         vvars <- mapM sInteger names
         let hv = Map.fromList (zip addrs hvars)
             vv = Map.fromList (zip names vvars)
-        return (ppredToSBV hv vv p)
+        return (predToSBV hv vv p)
     case eResult of
         Left  (e :: SomeException) -> return (SolverUnknown (show e))
         Right result ->
@@ -120,16 +139,16 @@ checkPPred p = do
                     return (Satisfied (Map.fromList vals))
                 else return Unsatisfiable
 
--- | Is a 'PPred' valid for every heap satisfying the standard domain
+-- | Is a 'Pred' valid for every heap satisfying the standard domain
 -- invariant that heap values are non-negative — i.e.\ does
 -- @(⋀_a h[a] ≥ 0) ⟹ p@ hold?  Plain Presburger validity would reject e.g.
 -- @h[a] = 0 ∨ h[a] > 0@ (it fails for @h[a] = -1@), even though every
 -- reachable heap in this library only ever holds non-negative values
 -- (see the 'GuardedRE' module header). Checked via Z3 by testing that the
 -- invariant conjoined with @¬p@ is unsatisfiable.
-isValidUnderHeapInvariant :: PPred -> IO Bool
+isValidUnderHeapInvariant :: Pred -> IO Bool
 isValidUnderHeapInvariant p = do
-    let axiom = foldr (PAnd . nonNeg) PTrue (nub (addrsInPPred p))
-        nonNeg a = PGe (ValAt a) (Lit 0)
+    let axiom = foldr (PAnd . nonNeg) PTrue (nub (addrsInPred p))
+        nonNeg a = PGe (Val (ValAt a)) (Val (Num 0))
     result <- checkPPred (PAnd axiom (PNot p))
     return (result == Unsatisfiable)

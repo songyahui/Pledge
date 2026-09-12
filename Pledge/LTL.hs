@@ -5,7 +5,7 @@ module Pledge.LTL
     , ltlToRe
     ) where
 
-import Pledge.Event hiding (Not)  -- 'Not' clashes with the RE complement constructor
+import Pledge.Event
 import Pledge.RE
 
 -- | Linear Temporal Logic formulae over finite traces.

@@ -1,7 +1,8 @@
 -- | Linear-arithmetic terms and predicates over heap values, with a purely
 -- structural normaliser (no solver).
 module Pledge.Presburger
-    ( Values(..)
+    ( Addr
+    , Values(..)
     , Term(..)
     , Pred(..)
     , normalizePred
@@ -35,12 +36,14 @@ data Term
     = Val Values
     | Add Term Term
     | Neg Term
+    | Mul Int Term  -- ^ @k · t@ — multiplication by an integer literal
     deriving (Eq)
 
 instance Show Term where
     show (Val v) = show v
     show (Add t1 t2) = "(" ++ show t1 ++ " + " ++ show t2 ++ ")"
     show (Neg t) = "(-" ++ show t ++ ")"
+    show (Mul k t) = "(" ++ show k ++ " * " ++ show t ++ ")"
 
 data Pred
     = PTrue
@@ -89,6 +92,10 @@ flattenT neg (Val (Num n)) = (sign neg * n, [])
 flattenT neg (Val v)       = (0, [(v, sign neg)])
 flattenT neg (Neg t)       = flattenT (not neg) t
 flattenT neg (Add s t)     = addNF (flattenT neg s) (flattenT neg t)
+flattenT neg (Mul k t)     =
+    let (c, m) = flattenT False t
+        s      = sign neg * k
+    in canonNF (s * c, [ (v, s * n) | (v, n) <- m ])
 
 sign :: Bool -> Int
 sign neg = if neg then -1 else 1
@@ -224,6 +231,7 @@ substHeapEqs eqs = onTerms go
     go (Val v)         = Val v
     go (Neg t)         = Neg (go t)
     go (Add s t)       = Add (go s) (go t)
+    go (Mul k t)       = Mul k (go t)
 
 onTerms :: (Term -> Term) -> Pred -> Pred
 onTerms f = go

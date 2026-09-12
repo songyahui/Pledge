@@ -28,9 +28,6 @@ library
       Pledge.LTL
       Pledge.MTL
       Pledge.GuardedRE
-      Pledge.Semiring
-      Pledge.WeightedRE
-      Pledge.SL
   build-depends:
       base
     , containers
@@ -66,13 +63,8 @@ executable pledge-main
       Examples.RE.Capability
       Examples.RE.Sensor
       Examples.RE.Shadow
-      Examples.SL.HeapMemory
-      Examples.SL.BankAccount
-      Examples.SL.LinkedList
       Examples.GuardedRE.Memory
       Examples.GuardedRE.BoundedCounter
-      Examples.WeightedRE.Memory
-      Examples.WeightedRE.TaskScheduler
 
 -- ── Test suite ────────────────────────────────────────────────────────────────
 
@@ -85,13 +77,3 @@ test-suite pledge-laws
       base
     , pledge
     , QuickCheck
-
-executable pledge-wre-monitor
-  hs-source-dirs:   Examples/WeightedRE
-  main-is:          ConcurrentMonitor.hs
-  default-language: GHC2021
-  ghc-options:      -threaded
-  build-depends:
-      base
-    , pledge
-    , stm
