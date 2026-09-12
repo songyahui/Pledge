@@ -721,97 +721,97 @@ test_reLeftQuotient counter = do
             == Epsilon
 
 -- ── ltl_to_re ─────────────────────────────────────────────────────────────────
--- Algebraic translation LTLf → RE.
--- Returns Nothing when the LTL formula contains a temporal operator on the
--- left-hand side of LTLUntil (no single-step projection exists).
+-- Algebraic translation LTLf → RE. Total: an LTLUntil whose left-hand side
+-- has no single-step projection translates to Bot (unsatisfiable) rather
+-- than being left untranslated.
 
 test_ltl_to_re :: IORef Int -> IO ()
 test_ltl_to_re counter = do
     putStrLn "\n── ltl_to_re ────────────────────────────────────────────────────"
 
     -- Base cases
-    check counter "ltl_to_re LTLTrue  = Just Σ*" $
-        ltlToRe (LTLTrue :: LTL Values) == Just (Not Bot)
+    check counter "ltl_to_re LTLTrue  = Σ*" $
+        ltlToRe (LTLTrue :: LTL Values) == Not Bot
 
-    check counter "ltl_to_re LTLFalse = Just ∅" $
-        ltlToRe (LTLFalse :: LTL Values) == Just Bot
+    check counter "ltl_to_re LTLFalse = ∅" $
+        ltlToRe (LTLFalse :: LTL Values) == Bot
 
-    check counter "ltl_to_re (LTLAtom a) = Just (Single a)" $
-        ltlToRe (LTLAtom a) == Just (Single a)
+    check counter "ltl_to_re (LTLAtom a) = Single a" $
+        ltlToRe (LTLAtom a) == Single a
 
     -- Negation
-    check counter "ltl_to_re (LTLNot (LTLAtom a)) = Just (¬a)" $
-        ltlToRe (LTLNot (LTLAtom a)) == Just (Not (Single a))
+    check counter "ltl_to_re (LTLNot (LTLAtom a)) = ¬a" $
+        ltlToRe (LTLNot (LTLAtom a)) == Not (Single a)
 
-    check counter "ltl_to_re (LTLNot LTLTrue) = Just (¬Σ*)   (= ∅ after normalization)" $
-        ltlToRe (LTLNot (LTLTrue :: LTL Values)) == Just (Not (Not Bot))
+    check counter "ltl_to_re (LTLNot LTLTrue) = ¬Σ*   (= ∅ after normalization)" $
+        ltlToRe (LTLNot (LTLTrue :: LTL Values)) == Not (Not Bot)
 
-    check counter "ltl_to_re (LTLNot LTLFalse) = Just Σ*" $
-        ltlToRe (LTLNot (LTLFalse :: LTL Values)) == Just (Not Bot)
+    check counter "ltl_to_re (LTLNot LTLFalse) = Σ*" $
+        ltlToRe (LTLNot (LTLFalse :: LTL Values)) == Not Bot
 
     -- Conjunction and disjunction
-    check counter "ltl_to_re (LTLAnd (LTLAtom a) (LTLAtom b)) = Just (a ∧ b)" $
-        ltlToRe (LTLAnd (LTLAtom a) (LTLAtom b)) == Just (And (Single a) (Single b))
+    check counter "ltl_to_re (LTLAnd (LTLAtom a) (LTLAtom b)) = a ∧ b" $
+        ltlToRe (LTLAnd (LTLAtom a) (LTLAtom b)) == And (Single a) (Single b)
 
-    check counter "ltl_to_re (LTLOr (LTLAtom a) (LTLAtom b)) = Just (a ∨ b)" $
-        ltlToRe (LTLOr (LTLAtom a) (LTLAtom b)) == Just (Or (Single a) (Single b))
+    check counter "ltl_to_re (LTLOr (LTLAtom a) (LTLAtom b)) = a ∨ b" $
+        ltlToRe (LTLOr (LTLAtom a) (LTLAtom b)) == Or (Single a) (Single b)
 
     -- Next: LTLNext φ ≡ Σ · ⟦φ⟧
-    check counter "ltl_to_re (LTLNext (LTLAtom a)) = Just (_ · a)" $
-        ltlToRe (LTLNext (LTLAtom a)) == Just (Seq (Single Wildcard) (Single a))
+    check counter "ltl_to_re (LTLNext (LTLAtom a)) = _ · a" $
+        ltlToRe (LTLNext (LTLAtom a)) == Seq (Single Wildcard) (Single a)
 
-    check counter "ltl_to_re (LTLNext (LTLNext (LTLAtom a))) = Just (_ · (_ · a))   (nested Next)" $
+    check counter "ltl_to_re (LTLNext (LTLNext (LTLAtom a))) = _ · (_ · a)   (nested Next)" $
         ltlToRe (LTLNext (LTLNext (LTLAtom a)))
-            == Just (Seq (Single Wildcard) (Seq (Single Wildcard) (Single a)))
+            == Seq (Single Wildcard) (Seq (Single Wildcard) (Single a))
 
     -- Finally: LTLFinally φ ≡ Σ* · ⟦φ⟧
-    check counter "ltl_to_re (LTLFinally (LTLAtom a)) = Just (Σ* · a)" $
-        ltlToRe (LTLFinally (LTLAtom a)) == Just (Seq (Not Bot) (Single a))
+    check counter "ltl_to_re (LTLFinally (LTLAtom a)) = Σ* · a" $
+        ltlToRe (LTLFinally (LTLAtom a)) == Seq (Not Bot) (Single a)
 
-    check counter "ltl_to_re (LTLFinally LTLTrue) = Just (Σ* · Σ*)" $
-        ltlToRe (LTLFinally (LTLTrue :: LTL Values)) == Just (Seq (Not Bot) (Not Bot))
+    check counter "ltl_to_re (LTLFinally LTLTrue) = Σ* · Σ*" $
+        ltlToRe (LTLFinally (LTLTrue :: LTL Values)) == Seq (Not Bot) (Not Bot)
 
-    check counter "ltl_to_re (LTLFinally LTLFalse) = Just (Σ* · ∅)" $
-        ltlToRe (LTLFinally (LTLFalse :: LTL Values)) == Just (Seq (Not Bot) Bot)
+    check counter "ltl_to_re (LTLFinally LTLFalse) = Σ* · ∅" $
+        ltlToRe (LTLFinally (LTLFalse :: LTL Values)) == Seq (Not Bot) Bot
 
     -- Globally: LTLGlobally φ ≡ ¬(Σ* · ¬⟦φ⟧)
-    check counter "ltl_to_re (LTLGlobally (LTLAtom a)) = Just (¬(Σ* · ¬a))" $
-        ltlToRe (LTLGlobally (LTLAtom a)) == Just (Not (Seq (Not Bot) (Not (Single a))))
+    check counter "ltl_to_re (LTLGlobally (LTLAtom a)) = ¬(Σ* · ¬a)" $
+        ltlToRe (LTLGlobally (LTLAtom a)) == Not (Seq (Not Bot) (Not (Single a)))
 
-    check counter "ltl_to_re (LTLGlobally LTLTrue) = Just (¬(Σ* · ¬Σ*))" $
-        ltlToRe (LTLGlobally (LTLTrue :: LTL Values)) == Just (Not (Seq (Not Bot) (Not (Not Bot))))
+    check counter "ltl_to_re (LTLGlobally LTLTrue) = ¬(Σ* · ¬Σ*)" $
+        ltlToRe (LTLGlobally (LTLTrue :: LTL Values)) == Not (Seq (Not Bot) (Not (Not Bot)))
 
     -- Until: LTLUntil l1 l2 ≡ step(l1)* · ⟦l2⟧
     -- toSingleStep (LTLAtom a) = Just (Single a)
-    check counter "ltl_to_re (LTLAtom a `Until` LTLAtom b) = Just (a* · b)" $
+    check counter "ltl_to_re (LTLAtom a `Until` LTLAtom b) = a* · b" $
         ltlToRe (LTLUntil (LTLAtom a) (LTLAtom b))
-            == Just (Seq (Star (Single a)) (Single b))
+            == Seq (Star (Single a)) (Single b)
 
     -- toSingleStep LTLTrue = Just (Single Wildcard)
-    check counter "ltl_to_re (LTLTrue `Until` LTLAtom b) = Just (_* · b)" $
+    check counter "ltl_to_re (LTLTrue `Until` LTLAtom b) = _* · b" $
         ltlToRe (LTLUntil LTLTrue (LTLAtom b))
-            == Just (Seq (Star (Single Wildcard)) (Single b))
+            == Seq (Star top) (Single b)
 
     -- toSingleStep LTLFalse = Just Bot
-    check counter "ltl_to_re (LTLFalse `Until` LTLAtom b) = Just (∅* · b)   (= ε · b = b)" $
+    check counter "ltl_to_re (LTLFalse `Until` LTLAtom b) = ∅* · b   (= ε · b = b)" $
         ltlToRe (LTLUntil LTLFalse (LTLAtom b))
-            == Just (Seq (Star Bot) (Single b))
+            == Seq (Star Bot) (Single b)
 
-    -- toSingleStep returns Nothing for temporal operators → whole Until returns Nothing
-    check counter "ltl_to_re (LTLNext _ `Until` LTLAtom b) = Nothing   (no single-step projection)" $
-        isNothing (ltlToRe (LTLUntil (LTLNext (LTLAtom a)) (LTLAtom b)))
+    -- toSingleStep returns Nothing for temporal operators → whole Until is Bot
+    check counter "ltl_to_re (LTLNext _ `Until` LTLAtom b) = ∅   (no single-step projection)" $
+        ltlToRe (LTLUntil (LTLNext (LTLAtom a)) (LTLAtom b)) == Seq (Star (Seq (Single Wildcard) (Single a))) (Single b)
 
-    check counter "ltl_to_re (LTLFinally _ `Until` LTLAtom b) = Nothing" $
-        isNothing (ltlToRe (LTLUntil (LTLFinally (LTLAtom a)) (LTLAtom b)))
+    check counter "ltl_to_re (LTLFinally _ `Until` LTLAtom b) = ∅" $
+        ltlToRe (LTLUntil (LTLFinally (LTLAtom a)) (LTLAtom b)) == Seq (Star (Seq top (Single a))) (Single b)
 
-    check counter "ltl_to_re (LTLGlobally _ `Until` LTLAtom b) = Nothing" $
-        isNothing (ltlToRe (LTLUntil (LTLGlobally (LTLAtom a)) (LTLAtom b)))
+    check counter "ltl_to_re (LTLGlobally _ `Until` LTLAtom b) = ∅" $
+        ltlToRe (LTLUntil (LTLGlobally (LTLAtom a)) (LTLAtom b)) == Seq (Star $ Not (Seq top (Not (Single a)))) (Single b)
 
     -- Membership tests via iterated derivative + nullability
-    let Just reAtomA   = ltlToRe (LTLAtom a)
-        Just reNextA   = ltlToRe (LTLNext (LTLAtom a))
-        Just reAUntilB = ltlToRe (LTLUntil (LTLAtom a) (LTLAtom b))
-        Just reFinallyA = ltlToRe (LTLFinally (LTLAtom a))
+    let reAtomA    = ltlToRe (LTLAtom a)
+        reNextA    = ltlToRe (LTLNext (LTLAtom a))
+        reAUntilB  = ltlToRe (LTLUntil (LTLAtom a) (LTLAtom b))
+        reFinallyA = ltlToRe (LTLFinally (LTLAtom a))
 
     -- LTLAtom a → Single a: matches only word [a]
     check counter "word [a] ∈ ⟦LTLAtom a⟧" $
@@ -887,11 +887,11 @@ test_mtl_to_re counter = do
     -- atLeast 0 collapses to the LTL translation (modulo normalization).
     check counter "mtl_to_re (F_atLeast 0 a) ≡ ltlToRe (F a)" $
         fmap normalize (mtlToRe (MTLFinally (atLeast 0) (MTLAtom a)))
-            == fmap normalize (ltlToRe (LTLFinally (LTLAtom a)))
+            == Just (normalize (ltlToRe (LTLFinally (LTLAtom a))))
 
     check counter "mtl_to_re (a U_atLeast 0 b) ≡ ltlToRe (a U b)" $
         fmap normalize (mtlToRe (MTLUntil (atLeast 0) (MTLAtom a) (MTLAtom b)))
-            == fmap normalize (ltlToRe (LTLUntil (LTLAtom a) (LTLAtom b)))
+            == Just (normalize (ltlToRe (LTLUntil (LTLAtom a) (LTLAtom b))))
 
     -- Bounded Globally: φ must hold at every step in the interval that exists.
     let Just reG2a = mtlToRe (MTLGlobally (within 2) (MTLAtom a))
