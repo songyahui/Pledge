@@ -67,12 +67,12 @@ fsHandler ref _ cmd = case cmd of
     FsClose path -> liftIO $ modifyIORef ref (++ ["close(" ++ path ++ ")"])
 
 -- ── 3. Shadow type ────────────────────────────────────────────────────────
--- A Shadow pairs the RE specification (F.Pledge IO (RE Term) a, checked
+-- A Shadow pairs the RE specification (F.Pledge IO (RE Values) a, checked
 -- statically by Pledge) with a real Eff '[FileSystem, IOE] a program
 -- (run by the effect handler at runtime).
 
 data Shadow a = Shadow
-    { spec :: F.Pledge IO (F.RE F.Term) a
+    { spec :: F.Pledge IO (F.RE F.Values) a
     , impl :: Eff '[FileSystem, IOE] a
     }
 
@@ -97,9 +97,9 @@ instance Monad Shadow where
     Shadow sp ef >>= f = Shadow (sp >>= spec . f) (ef >>= impl . f)
 
 -- ── 4. Spec primitives ────────────────────────────────────────────────────
--- For each Eff operation, an F.Pledge IO (RE Term) value carrying the RE contract.
+-- For each Eff operation, an F.Pledge IO (RE Values) value carrying the RE contract.
 
-specOpen :: FilePath -> F.Pledge IO (F.RE F.Term) ()
+specOpen :: FilePath -> F.Pledge IO (F.RE F.Values) ()
 specOpen path = F.Pledge $ return
     ((), universe,
      F.Single (F.Atom "open" (F.List [F.Str path])),
@@ -113,14 +113,14 @@ specOpen path = F.Pledge $ return
 -- @pre p@ is ∅.  So a chain of Single-preconditions reports a violation for a
 -- program that is in fact correct.  Preconditions must be properties of the
 -- whole preceding trace.
-specRead :: FilePath -> F.Pledge IO (F.RE F.Term) String
+specRead :: FilePath -> F.Pledge IO (F.RE F.Values) String
 specRead path = F.Pledge $ return
     ("",  -- placeholder: spec models protocol, not content
      previously (F.Atom "open" (F.List [F.Str path])),
      F.Single (F.Atom "read" (F.List [F.Str path])),
      universe)
 
-specClose :: FilePath -> F.Pledge IO (F.RE F.Term) ()
+specClose :: FilePath -> F.Pledge IO (F.RE F.Values) ()
 specClose path = F.Pledge $ return
     ((), previously (F.Atom "open" (F.List [F.Str path])),
      F.Single (F.Atom "close" (F.List [F.Str path])),

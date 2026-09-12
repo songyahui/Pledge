@@ -19,8 +19,8 @@ import Pledge.GuardedRE
 -- the collapse propagates through composition, turning the whole program's `pre`
 -- (or `fut`) into the empty disjunction ⊥.
 --
---   Trace constraint (RE):   `start` must precede every `inc` / `dec` / `read`.
---   Heap constraint (PPred): every step keeps `lo ≤ counter ≤ hi`.
+--   Trace constraint (RE):  `start` must precede every `inc` / `dec` / `read`.
+--   Heap constraint (Pred): every step keeps `lo ≤ counter ≤ hi`.
 --
 -- This is the same problem the old version of this file flagged as *outside*
 -- what GuardedRE can express.  It was outside only because the counter value
@@ -61,19 +61,19 @@ modifyC f = Counter $ \s -> ((), f s)
 
 data Bounds = Bounds { lo :: Int, hi :: Int }
 
-startE, readE :: Event Term
+startE, readE :: Event Values
 startE = Atom "start" (List [])
 readE  = Atom "read"  (List [])
 
-incE, decE :: Int -> Event Term
+incE, decE :: Int -> Event Values
 incE v = Atom "inc" (List [Num v])
 decE v = Atom "dec" (List [Num v])
 
 -- `lo ≤ v ≤ hi`, as a predicate over the (already concrete) new value.
-inRange :: Bounds -> Int -> PPred
-inRange b v = PAnd (PGe (Lit v) (Lit (lo b))) (PLe (Lit v) (Lit (hi b)))
+inRange :: Bounds -> Int -> Pred
+inRange b v = PAnd (PGe (Val (Num v)) (Val (Num (lo b)))) (PLe (Val (Num v)) (Val (Num (hi b))))
 
-type CProg a = Pledge Counter (GuardedRE Term) a
+type CProg a = Pledge Counter (GuardedRE Values) a
 
 -- ── Primitives ────────────────────────────────────────────────────────────────
 
@@ -95,7 +95,7 @@ increment b = Pledge $ do
     let n' = n + 1
     putC n'
     pure ( ()
-         , [ (PLe (Lit n') (Lit (hi b)), previously startE) ]   -- pre
+         , [ (PLe (Val (Num n')) (Val (Num (hi b))), previously startE) ]   -- pre
          , fromRE (Single (incE n'))                            -- post
          , [ (inRange b n', universe) ]                         -- fut
          )
@@ -107,7 +107,7 @@ decrement b = Pledge $ do
     let n' = n - 1
     putC n'
     pure ( ()
-         , [ (PGe (Lit n') (Lit (lo b)), previously startE) ]   -- pre
+         , [ (PGe (Val (Num n')) (Val (Num (lo b))), previously startE) ]   -- pre
          , fromRE (Single (decE n'))                            -- post
          , [ (inRange b n', universe) ]                         -- fut
          )
@@ -129,7 +129,7 @@ readCounter = Pledge $ do
 -- nullable RE.  Every predicate we build here is over literals, so
 -- 'normalizeGuarded' has already reduced it to `true` or dropped it — no solver
 -- call is needed.
-metByEmpty :: GuardedRE Term -> Bool
+metByEmpty :: GuardedRE Values -> Bool
 metByEmpty = any (nullable . snd) . normalizeGuarded
 
 data Verdict = OK | Violation deriving (Eq, Show)

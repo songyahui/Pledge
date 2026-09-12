@@ -54,6 +54,7 @@ executable pledge-main
   other-modules:
       Examples.UnitTest.PledgeTest
       Examples.UnitTest.PresburgerTest
+      Examples.UnitTest.RELaws
       Examples.RE.Memory
       Examples.RE.FileHandle
       Examples.RE.Mutex
@@ -65,15 +66,3 @@ executable pledge-main
       Examples.RE.Shadow
       Examples.GuardedRE.Memory
       Examples.GuardedRE.BoundedCounter
-
--- ── Test suite ────────────────────────────────────────────────────────────────
-
-test-suite pledge-laws
-  type:             exitcode-stdio-1.0
-  hs-source-dirs:   .
-  main-is:          Tests/RELaws.hs
-  default-language: GHC2021
-  build-depends:
-      base
-    , pledge
-    , QuickCheck

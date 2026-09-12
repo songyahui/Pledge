@@ -6,9 +6,9 @@ import System.Random
 -- free requires that malloc was the immediately preceding post-event.
 -- For interleaved mallocs use `pre = universe` and rely on `future` instead.
 
-type RETerm = (RE Term)
+type RETerm = (RE Values)
 
-malloc :: Pledge IO (RE Term) Addr
+malloc :: Pledge IO (RE Values) Addr
 malloc = Pledge $ do
     addr <- randomRIO (0, 5)
     return (addr,
@@ -17,7 +17,7 @@ malloc = Pledge $ do
             if addr > 0 then finally (Atom "free" (List [Num addr]))
                         else never (Usage (List [Num addr])))
 
-free :: Addr -> Pledge IO (RE Term) ()
+free :: Addr -> Pledge IO (RE Values) ()
 -- noUntil free malloc: free(addr) must not occur again until malloc(addr)
 -- happens first.  This prevents double-free while allowing re-allocation:
 --   free → free          is forbidden  (double-free, no malloc in between)
@@ -33,7 +33,7 @@ free addr = Pledge $ return
 
 -- Good: malloc uses the returned address to parameterise the free obligation.
 -- Demonstrates data-dependent future: future = \a -> finally(free(a)).
-mallocFreeByReturnedAddr :: Pledge IO (RE Term) ()
+mallocFreeByReturnedAddr :: Pledge IO (RE Values) ()
 mallocFreeByReturnedAddr = do
     addr :: Addr <- malloc
     free addr

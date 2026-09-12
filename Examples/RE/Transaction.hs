@@ -3,13 +3,13 @@ import Prelude hiding ((<>))
 import Pledge
 
 -- Begin a transaction: future = eventually commit or rollback
-beginTx :: Pledge IO (RE Term) ()
+beginTx :: Pledge IO (RE Values) ()
 beginTx = Pledge $ return
     ((), universe,
      Single (Atom "beginTx" (List [])),
      Or (finally (Atom "commit" (List []))) (finally (Atom "rollback" (List []))))
 
-dbWrite :: String -> Int -> Pledge IO (RE Term) ()
+dbWrite :: String -> Int -> Pledge IO (RE Values) ()
 dbWrite key val = Pledge $ return
     ((), universe,
      Single (Atom "write" (List [Str key, Num val])),
@@ -24,37 +24,37 @@ dbWrite key val = Pledge $ return
 -- exactly, so @Atom "write" (List [])@ matches only a write with /no/
 -- arguments -- never @dbWrite "balance" 100@.  There is currently no way to
 -- write "a write with any arguments"; see Feedback/revision-todo.md.
-commit :: Pledge IO (RE Term) ()
+commit :: Pledge IO (RE Values) ()
 commit = Pledge $ return
     ((), previously (Atom "beginTx" (List [])),
      Single (Atom "commit" (List [])),
      universe)
 
-rollback :: Pledge IO (RE Term) ()
+rollback :: Pledge IO (RE Values) ()
 rollback = Pledge $ return
     ((), universe, Single (Atom "rollback" (List [])), universe)
 
 -- Good: begin, write, commit
-committedTx :: Pledge IO (RE Term) ()
+committedTx :: Pledge IO (RE Values) ()
 committedTx = do
     beginTx
     dbWrite "balance" 100
     commit
 
 -- Good: begin, write, rollback
-rolledBackTx :: Pledge IO (RE Term) ()
+rolledBackTx :: Pledge IO (RE Values) ()
 rolledBackTx = do
     beginTx
     dbWrite "balance" 100
     rollback
 
 -- Bad: begin and write but no commit or rollback — future obligation remains
-openTx :: Pledge IO (RE Term) ()
+openTx :: Pledge IO (RE Values) ()
 openTx = do
     beginTx
     dbWrite "balance" 100
 
-printResult :: String -> Pledge IO (RE Term) () -> IO ()
+printResult :: String -> Pledge IO (RE Values) () -> IO ()
 printResult name prog = do
     (_, preC, postC, futC) <- runPledge prog
     putStrLn $ "=== " ++ name ++ " ==="

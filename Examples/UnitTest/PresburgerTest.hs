@@ -36,7 +36,7 @@ test_checkPPred counter = do
     check counter "PTrue is SAT with empty heap" (r0 == Satisfied Map.empty)
 
     -- h[0] = 3  (equality with a literal)
-    r1 <- checkPPred (PEq (ValAt 0) (Lit 3))
+    r1 <- checkPPred (PEq (Val (ValAt 0)) (Val (Num 3)))
     check counter "h[0] = 3 is SAT" (isSat r1)
     case r1 of
         Satisfied h -> check counter "h[0] = 3 witness value is 3"
@@ -44,15 +44,15 @@ test_checkPPred counter = do
         _           -> return ()
 
     -- h[0] < h[0]  (strict self-comparison — always false)
-    r2 <- checkPPred (PLt (ValAt 0) (ValAt 0))
+    r2 <- checkPPred (PLt (Val (ValAt 0)) (Val (ValAt 0)))
     check counter "h[0] < h[0] is UNSAT" (isUnsat r2)
 
     -- h[0] > 0 ∧ h[0] < 0  (contradictory bounds)
-    r3 <- checkPPred (PAnd (PGt (ValAt 0) (Lit 0)) (PLt (ValAt 0) (Lit 0)))
+    r3 <- checkPPred (PAnd (PGt (Val (ValAt 0)) (Val (Num 0))) (PLt (Val (ValAt 0)) (Val (Num 0))))
     check counter "h[0] > 0 ∧ h[0] < 0 is UNSAT" (isUnsat r3)
 
     -- h[0] >= 5 ∧ h[0] <= 5  (forces h[0] = 5)
-    r4 <- checkPPred (PAnd (PGe (ValAt 0) (Lit 5)) (PLe (ValAt 0) (Lit 5)))
+    r4 <- checkPPred (PAnd (PGe (Val (ValAt 0)) (Val (Num 5))) (PLe (Val (ValAt 0)) (Val (Num 5))))
     check counter "h[0] >= 5 ∧ h[0] <= 5 is SAT" (isSat r4)
     case r4 of
         Satisfied h -> check counter "h[0] >= 5 ∧ h[0] <= 5 witness is 5"
@@ -60,12 +60,12 @@ test_checkPPred counter = do
         _           -> return ()
 
     -- ¬(h[0] = h[0])  (negation of a tautology — always false)
-    r5 <- checkPPred (PNot (PEq (ValAt 0) (ValAt 0)))
+    r5 <- checkPPred (PNot (PEq (Val (ValAt 0)) (Val (ValAt 0))))
     check counter "¬(h[0] = h[0]) is UNSAT" (isUnsat r5)
 
     -- h[0] + h[1] = 10 ∧ h[0] = 3  (two-variable system)
-    r6 <- checkPPred (PAnd (PEq (Add (ValAt 0) (ValAt 1)) (Lit 10))
-                           (PEq (ValAt 0) (Lit 3)))
+    r6 <- checkPPred (PAnd (PEq (Add (Val (ValAt 0)) (Val (ValAt 1))) (Val (Num 10)))
+                           (PEq (Val (ValAt 0)) (Val (Num 3))))
     check counter "h[0] + h[1] = 10 ∧ h[0] = 3 is SAT" (isSat r6)
     case r6 of
         Satisfied h -> check counter "two-variable witness: h[1] = 7"
@@ -73,7 +73,7 @@ test_checkPPred counter = do
         _           -> return ()
 
     -- 2 * h[0] = 7  (no integer solution)
-    r7 <- checkPPred (PEq (Mul 2 (ValAt 0)) (Lit 7))
+    r7 <- checkPPred (PEq (Mul 2 (Val (ValAt 0))) (Val (Num 7)))
     check counter "2*h[0] = 7 is UNSAT" (isUnsat r7)
 
 -- ── Entry point ───────────────────────────────────────────────────────────────

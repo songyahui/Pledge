@@ -4,42 +4,42 @@ import Pledge
 
 -- TCP-like three-way handshake modelled as effectful steps.
 
-sendSYN :: Pledge IO (RE Term) ()
+sendSYN :: Pledge IO (RE Values) ()
 sendSYN = Pledge $ return
     ((), universe,
      Single (Atom "sendSYN" (List [])),
      finally (Atom "recvSYNACK" (List [])))
 
 -- Precondition: sendSYN must have just occurred
-recvSYNACK :: Pledge IO (RE Term) ()
+recvSYNACK :: Pledge IO (RE Values) ()
 recvSYNACK = Pledge $ return
     ((), previously (Atom "sendSYN" (List [])),
      Single (Atom "recvSYNACK" (List [])),
      finally (Atom "sendACK" (List [])))
 
 -- Precondition: recvSYNACK must have just occurred
-sendACK :: Pledge IO (RE Term) ()
+sendACK :: Pledge IO (RE Values) ()
 sendACK = Pledge $ return
     ((), previously (Atom "recvSYNACK" (List [])),
      Single (Atom "sendACK" (List [])),
      universe)
 
-sendData :: String -> Pledge IO (RE Term) ()
+sendData :: String -> Pledge IO (RE Values) ()
 sendData payload = Pledge $ return
     ((), universe, Single (Atom "sendData" (List [Str payload])), universe)
 
-sendFIN :: Pledge IO (RE Term) ()
+sendFIN :: Pledge IO (RE Values) ()
 sendFIN = Pledge $ return
     ((), universe,
      Single (Atom "sendFIN" (List [])),
      finally (Atom "recvFINACK" (List [])))
 
-recvFINACK :: Pledge IO (RE Term) ()
+recvFINACK :: Pledge IO (RE Values) ()
 recvFINACK = Pledge $ return
     ((), universe, Single (Atom "recvFINACK" (List [])), universe)
 
 -- Good: complete handshake, data, teardown — all preconditions met, no future pending
-fullSession :: Pledge IO (RE Term) ()
+fullSession :: Pledge IO (RE Values) ()
 fullSession = do
     sendSYN
     recvSYNACK
@@ -49,18 +49,18 @@ fullSession = do
     recvFINACK
 
 -- Bad: SYN sent but handshake never completed — future pending
-stalledHandshake :: Pledge IO (RE Term) ()
+stalledHandshake :: Pledge IO (RE Values) ()
 stalledHandshake = do
     sendSYN
 
 -- Bad: recvSYNACK called without sendSYN — precondition violated
-outOfOrder :: Pledge IO (RE Term) ()
+outOfOrder :: Pledge IO (RE Values) ()
 outOfOrder = do
     recvSYNACK
     sendACK
 
 -- Bad: connection never torn down — future pending
-teardownMissed :: Pledge IO (RE Term) ()
+teardownMissed :: Pledge IO (RE Values) ()
 teardownMissed = do
     sendSYN
     recvSYNACK
@@ -69,7 +69,7 @@ teardownMissed = do
     sendFIN
     -- missing recvFINACK
 
-printResult :: String -> Pledge IO (RE Term) () -> IO ()
+printResult :: String -> Pledge IO (RE Values) () -> IO ()
 printResult name prog = do
     (_, preC, postC, futC) <- runPledge prog
     putStrLn $ "=== " ++ name ++ " ==="
