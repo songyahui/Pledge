@@ -100,45 +100,43 @@
 \email{author@institution.edu}
 
 \begin{abstract}
-Pre- and post-conditions are the standard vocabulary for modular program specification, yet they are silent about obligations that span multiple calls.
-In real Haskell code such obligations are ubiquitous: an acquired mutex must eventually be released.
-An opened handle must eventually be closed.
-A pre/post pair on the acquiring operation cannot express these properties,
-because the balancing operation lies in an unknown future context, tracking it means
-threading auxiliary state by hand through every intermediate bind.
+Modular specification is local: a pre/post pair, a type, a contract each
+describe one boundary at one moment.
+Temporal obligations are not local --- when a mutex is acquired, the release
+that balances it lies in a context the specifier cannot see.
+Existing answers give up modularity (a global runtime monitor) or bake the
+obligation into the type, so a change to the protocol perturbs type
+signatures throughout the program (linearity, typestate).
 
-We present \emph{Pledge}, a Haskell library in which such obligations are
-ordinary values.
-A \lstinline{Pledge m eff a} carries, beside its result, what must have held
-before it ran, what it produces, and what must still hold after.
-One bind formula propagates all three by \emph{quotient}: binding strips
-from a pending obligation whatever the continuation actually delivers.
-What is left over --- the \emph{residual} --- names precisely what the
-program still owes.
+We observe that sequencing a computation against an obligation about its
+future is \emph{subtraction}: a continuation that partially
+discharges an obligation leaves a \emph{residual} naming exactly what is
+still owed, and residuals compose.
+We present \emph{Pledge}, a Haskell library built on one composition law.
+The law needs six operations --- concatenation, meet, a unit, a top, and
+two quotients --- to propagate obligations through sequential composition;
+we call this six-operation class \emph{Composable}.
+%A new obligation language is just a new \lstinline{Composable} instance over the same six, not a new encoding.
 
-The formula needs only six operations, abstracted as a \lstinline{Composable}
-type class, and we prove the monad laws in Lean~4 from twelve algebraic
-axioms over that class, identifying exactly the two side conditions under
-which our regular-expression instance $\RE$ satisfies them --- conditions
-the obvious way of writing an annotation quietly violates, silently
-reporting a violated contract for a correct program.
-A soundness theorem completes the picture: a discharged residual entails
-that the trace a run emitted met every obligation its primitives named.
-On top of $\RE$ we build two front-ends that read the same residual two
-different ways: an $\LTL$ layer that turns \lstinline{Pledge} into a
-compositional \emph{runtime monitor} whose state is the residual itself, and
-a bounded $\MTL$ layer that adds discrete-time intervals, compiled down to
-$\RE$ by finite unrolling.
-A separate $\GRE$ instance pairs an $\RE$ with a Presburger arithmetic
-predicate, discharged by Z3, and because that predicate is checked over
-symbolic heap addresses rather than a concrete run, $\GRE$ gives
-\lstinline{Pledge} a \emph{static verification} mode alongside its runtime
-one.
-Because the underlying monad is arbitrary, the residual describes the path
-a program actually took and can be computed beside a real effect handler.
-\lstinline{Pledge} tells you what is still owed, and where; making it enforce
-that, prove its own instances' laws automatically, and report empirical cost
-are the open problems we lay out as a concrete roadmap.
+We instantiate this law for regular expressions, composed via
+Brzozowski derivatives, and build three ways of putting \emph{Pledge}
+to work on top of it: an $\LTL$ layer that reads its residual as a
+compositional runtime monitor; a second, SMT-checked instance, $\GRE$,
+that pairs it with a Presburger-arithmetic predicate discharged by Z3 and
+checked over symbolic states, giving \emph{Pledge} a
+static-verification mode; and a bounded $\MTL$ layer that adds
+discrete-time intervals, compiled down by finite unrolling.
+
+We prototype this composition law as a monad in Haskell, so obligations become ordinary
+values threaded by \lstinline{>>=} over an arbitrary base monad, with
+residuals computed as its real effects run.
+We prove the monad laws in Lean~4 from twelve algebraic axioms over
+\lstinline{Composable}.
+The $\RE$ instance of \lstinline{Composable} satisfies them under
+exactly two side conditions: ???
+A soundness theorem ties the two readings together: a discharged residual
+entails that the trace a run emitted met every obligation its primitives
+named.
 \end{abstract}
 
 \keywords{temporal specification, monadic effects, regular expressions,
@@ -261,7 +259,7 @@ describe the one path the program actually took --- not an
 over-approximation of every path it might have taken.
 This is what lets \S\ref{sec:ltl} read \lstinline{Pledge} as a
 \emph{runtime monitor}: the residual after each bind is the monitor's state,
-computed beside a real effect handler rather than against a static model.
+computed as real effects run rather than against a static model.
 
 Second, nothing intervenes, as the library stands today.
 The residual is a value to be inspected; a program that fails to discharge
@@ -293,10 +291,12 @@ anything else names what is still owed.
 identifies exactly what that algebra must satisfy for
 Equations~\eqref{eq:pre-bind}--\eqref{eq:fut-bind} to obey the monad laws;
 \S\ref{sec:re-instance} instantiates the algebra with regular expressions
-and Brzozowski derivatives and proves the instance sound;
-\S\ref{sec:ltl}--\S\ref{sec:mtl} build two front-ends on top of that
-instance, and \S\ref{sec:gre} builds a fourth, SMT-checked instance beside
-it; \S\ref{sec:usability}--\S\ref{sec:experiments} lay out, concretely, the
+and Brzozowski derivatives and proves the instance sound.
+On top of that instance, \S\ref{sec:ltl} reads its residual as a
+compositional runtime monitor via an $\LTL$ layer, \S\ref{sec:gre} builds
+a second, SMT-checked instance $\GRE$ for static verification, and
+\S\ref{sec:mtl} adds a bounded $\MTL$ layer with discrete-time intervals;
+\S\ref{sec:usability}--\S\ref{sec:experiments} lay out, concretely, the
 three pieces of engineering the design still needs.
 
 \paragraph{Contributions.}
@@ -319,17 +319,22 @@ three pieces of engineering the design still needs.
         soundness theorem: a fully discharged $\RE$ residual entails that
         the emitted trace met every obligation its primitives named.
 
-  \item \textbf{Two front-ends on top of $\RE$}
-        (\S\ref{sec:ltl}, \S\ref{sec:mtl}): an $\LTL$ layer that reframes
-        \lstinline{Pledge} as a compositional runtime monitor, and a
-        bounded $\MTL$ layer adding discrete-time intervals, both compiling
-        to $\RE$ so \S\ref{sec:re-instance}'s theory applies unchanged.
+  \item \textbf{A runtime monitor on top of $\RE$} (\S\ref{sec:ltl}): an
+        $\LTL$ layer that reframes \lstinline{Pledge} as a compositional
+        runtime monitor whose state is the residual itself, compiled to
+        $\RE$ so \S\ref{sec:re-instance}'s theory applies unchanged.
 
-  \item \textbf{A fourth, SMT-checked instance} (\S\ref{sec:gre}): $\GRE$
+  \item \textbf{A second, SMT-checked instance} (\S\ref{sec:gre}): $\GRE$
         pairs an $\RE$ with a Presburger predicate over heap addresses,
         discharged by Z3, and because that predicate is checked
-        symbolically it gives \lstinline{Pledge} a static-verification mode
-        distinct from $\LTL$'s runtime one.
+        symbolically over addresses rather than a concrete run, it gives
+        \lstinline{Pledge} a static-verification mode beside $\LTL$'s
+        runtime one.
+
+  \item \textbf{A bounded temporal layer on top of $\RE$}
+        (\S\ref{sec:mtl}): an $\MTL$ layer that adds discrete-time
+        intervals, compiled down to $\RE$ by finite unrolling so
+        \S\ref{sec:re-instance}'s theory applies unchanged.
 
   \item \textbf{A concrete roadmap for the unfinished third of the design}
         (\S\ref{sec:usability}--\S\ref{sec:experiments}): making a
