@@ -130,10 +130,10 @@ discrete-time intervals, compiled down by finite unrolling.
 We prototype this composition law as a monad in Haskell, so obligations become ordinary
 values threaded by \lstinline{>>=} over an arbitrary base monad, with
 residuals computed as its real effects run.
-We prove the monad laws in Lean~4 from twelve algebraic axioms over
+We prove the monad laws in Lean~4 from fourteen algebraic axioms over
 \lstinline{Composable}.
 The $\RE$ instance of \lstinline{Composable} satisfies them under
-exactly two side conditions: ???
+exactly two side conditions: ???.
 A soundness theorem ties the two readings together: a discharged residual
 entails that the trace a run emitted met every obligation its primitives
 named.
@@ -309,7 +309,7 @@ three pieces of engineering the design still needs.
 
   \item \textbf{Mechanised metatheory, and its exact boundary}
         (\S\ref{sec:monad-laws}--\S\ref{sec:re-instance}).
-        We identify twelve algebraic axioms sufficient for the three monad
+        We identify fourteen algebraic axioms sufficient for the three monad
         laws on the $(\ret, \post, \fut)$ triple and prove the laws
         \lstinline{sorry}-free in Lean~4.
         Mechanising the $\RE$ instance against those axioms then
@@ -559,16 +559,16 @@ which equations we then ask them to satisfy, not in how they are treated
 algebraically.
 
 %% -------------------------------------------------------------------------
-\subsection{Twelve axioms}
+\subsection{Fourteen axioms}
 \label{sec:axioms}
 
-The laws hold assuming the twelve axioms in Table~\ref{tab:axioms},
+The laws hold assuming the fourteen axioms in Table~\ref{tab:axioms},
 stated abstractly over the \lstinline{Composable} algebra.
 The reversal duality is visible in the table: R1--R4 are L1--L4 with the
 order of composition reversed, and nothing else.
 
 \begin{table}[ht]
-\caption{The twelve \lstinline{Composable} axioms required to prove the
+\caption{The fourteen \lstinline{Composable} axioms required to prove the
          monad laws for the $(\ret, \post, \fut)$ triple.}
 \label{tab:axioms}
 \small
@@ -604,7 +604,7 @@ We verify all three laws using these axioms.
 In each case we show that both sides of the law produce equal
 $(\ret, \post, \fut)$ triples.
 It is worth noting which axioms each law consumes, because
-\S\ref{sec:boundary} shows that not all twelve are unconditionally
+\S\ref{sec:boundary} shows that not all fourteen are unconditionally
 available for a given instance:
 left identity uses S1, C3, L2, R1;
 right identity uses S2, C1, C3, L1, R2;
@@ -646,13 +646,13 @@ For $\pre$, applying R4 then R3 gives the same result on both sides by C2. $\che
 
 The three proofs above are mechanised in Lean~4 in
 \texttt{Formalization/PledgeMonadLaws.lean}, using an abstract
-\lstinline{Composable} structure parametrised over the twelve axioms of
+\lstinline{Composable} structure parametrised over the fourteen axioms of
 Table~\ref{tab:axioms}.
 The file carries no \lstinline{sorry}; all proofs are term-mode derivations
 from the stated axioms, and depend on Mathlib~\cite{mathlib4} only for
 basic list and set lemmas.
 Because the theorem is proved once, abstractly, \emph{any} instance that
-discharges the twelve axioms inherits the monad laws for free ---
+discharges the fourteen axioms inherits the monad laws for free ---
 \S\ref{sec:re-instance} is where we pay that debt for $\RE$.
 
 %% =========================================================================
@@ -660,7 +660,7 @@ discharges the twelve axioms inherits the monad laws for free ---
 \label{sec:re-instance}
 %% =========================================================================
 
-\S\ref{sec:monad-laws} proved the monad laws \emph{relative to} twelve
+\S\ref{sec:monad-laws} proved the monad laws \emph{relative to} fourteen
 axioms.
 This section discharges those axioms for a concrete instance: extended
 regular expressions over a typed event alphabet, with Brzozowski
@@ -831,11 +831,11 @@ recursion diverge.
 \subsection{What the \texorpdfstring{$\RE$}{RE} instance actually satisfies}
 \label{sec:boundary}
 
-Eight of the twelve axioms hold outright for $\RE$; four do not
+Ten of the fourteen axioms hold outright for $\RE$; four do not
 unconditionally, and Table~\ref{tab:axiom-status} records which.
 
 \begin{table}[ht]
-\caption{Status of the twelve axioms for the $\RE$ instance, as mechanised
+\caption{Status of the fourteen axioms for the $\RE$ instance, as mechanised
          in \texttt{Formalization/REComposableLaws.lean}.}
 \label{tab:axiom-status}
 \small
@@ -903,13 +903,13 @@ R4 is the mirror image.
 
 \begin{theorem}[Laws for single-word postconditions]
 \label{thm:single-word}
-If every primitive's $\post$ denotes a single word, then all twelve axioms
+If every primitive's $\post$ denotes a single word, then all fourteen axioms
 hold for the $\RE$ instance and the three monad laws hold with equality.
 \end{theorem}
 \begin{proof}
 Every $\lquot$ and $\rquot$ in Equations~\eqref{eq:pre-bind}
 and~\eqref{eq:fut-bind} has a $\post$ field as its divisor, so
-Lemma~\ref{lem:unique-witness} applies at every use; the remaining eight
+Lemma~\ref{lem:unique-witness} applies at every use; the remaining ten
 axioms hold unconditionally.
 \end{proof}
 
@@ -993,7 +993,7 @@ them unwriteable rather than merely documented.
 \label{sec:mechanisation}
 
 A companion Lean file, \texttt{Formalization/REComposableLaws.lean},
-develops the $\RE$ instance at the level of languages: it proves the eight
+develops the $\RE$ instance at the level of languages: it proves the ten
 unconditional axioms, proves L2 and R2 under the non-emptiness hypothesis,
 proves the $\subseteq$ direction of L4 and R4 and exhibits the
 counterexample to the converse, and proves derivative and
@@ -1537,12 +1537,12 @@ Both are additions to \lstinline{Pledge.Core}; neither requires revisiting
 \label{sec:proof-gen}
 %% =========================================================================
 
-\S\ref{sec:monad-laws} proves the monad laws once, abstractly, from twelve
-axioms; \S\ref{sec:mechanisation} then discharges those twelve axioms for
+\S\ref{sec:monad-laws} proves the monad laws once, abstractly, from fourteen
+axioms; \S\ref{sec:mechanisation} then discharges those fourteen axioms for
 $\RE$ by hand in Lean.
 Every new \lstinline{Composable} instance --- $\GRE$ today, whatever comes
 after it tomorrow --- currently repeats that second step from scratch: a
-person mirrors the Haskell definition in Lean and proves twelve lemmas
+person mirrors the Haskell definition in Lean and proves fourteen lemmas
 again.
 This does not scale past a handful of instances, and it is the piece of the
 mechanisation story we have not automated.
@@ -1550,13 +1550,13 @@ mechanisation story we have not automated.
 \paragraph{Plan.}
 \begin{itemize}[wide, labelindent=10pt]
   \item \textbf{Property-test first.} Before writing any Lean, state the
-        twelve axioms as QuickCheck properties over the candidate instance
+        fourteen axioms as QuickCheck properties over the candidate instance
         --- exactly what \S\ref{sec:mechanisation} already does for $\RE$
         --- and run them over a bounded pool. A property that fails here
         needn't be attempted in Lean; \S\ref{sec:boundary} is what a
         systematic sweep of this kind found for $\RE$.
   \item \textbf{Generate the Lean statements, not the proofs, mechanically.}
-        The twelve axiom statements are the same schema for every instance,
+        The fourteen axiom statements are the same schema for every instance,
         parametrised only by the instance's \lstinline{concatenation},
         \lstinline{conjunction}, and quotients; a small script can emit the
         Lean lemma \emph{signatures} for a new instance directly from its
@@ -1769,7 +1769,7 @@ six-operation \lstinline{Composable} class.
 
 The design now spans two solid instances built on one theory.
 $\RE$, with Brzozowski derivatives computing both quotients, satisfies
-twelve algebraic axioms exactly under two stated side conditions ---
+fourteen algebraic axioms exactly under two stated side conditions ---
 single-word postconditions, past-closed preconditions --- proved in Lean~4
 alongside a soundness theorem connecting a discharged residual to the trace
 a run actually emitted.
